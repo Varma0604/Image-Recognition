@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Classification App</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+        #imageContainer {
+            margin-top: 20px;
+        }
+        #imagePreview {
+            max-width: 100%;
+            max-height: 300px;
+        }
+        #result {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Image Classification App</h1>
+    <input type="file" id="imageUpload" accept="image/*">
+    <div id="imageContainer">
+        <img id="imagePreview" src="" alt="Upload an image">
+    </div>
+    <div id="result">Upload an image to classify it.</div>
+
+    <script>
+        let model;
+
+        // Load the MobileNet model
+        async function loadModel() {
+            model = await mobilenet.load();
+            console.log('Model loaded');
+        }
+        loadModel();
+
+        // Handle image upload
+        document.getElementById('imageUpload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) {
+                console.log('No file selected');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    document.getElementById('imagePreview').src = img.src;
+
+                    // Resize the image to 224x224
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 224; // MobileNet input size
+                    canvas.height = 224;
+                    const ctx = canvas.getContext('2d');
+
+                    // Draw the image on the canvas and preprocess it
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    classifyImage(canvas);
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // Classify the image
+        async function classifyImage(canvas) {
+            if (!model) {
+                console.log('Model not loaded yet');
+                return;
+            }
+
+            try {
+                const predictions = await model.classify(canvas);
+                if (predictions.length > 0) {
+                    const topPrediction = predictions[0];
+                    document.getElementById('result').innerText = `
+                        Prediction: ${topPrediction.className}
+                        Probability: ${(topPrediction.probability * 100).toFixed(2)}%
+                    `;
+                } else {
+                    document.getElementById('result').innerText = 'No predictions made.';
+                }
+            } catch (error) {
+                console.error('Error during classification:', error);
+                document.getElementById('result').innerText = 'Error classifying the image.';
+            }
+        }
+    </script>
+</body>
+</html>
